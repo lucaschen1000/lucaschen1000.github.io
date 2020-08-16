@@ -1,0 +1,10 @@
+title: Lucas Chen's blog
+iconURL: /assets/pumpkin-23439_640.png
+
+permalink: :slug
+
+plugins:
+ - jekyll-feed
+ - jekyll-seo-tag
+
+hyvor_talk_website_id: 1639
