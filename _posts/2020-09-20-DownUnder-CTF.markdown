@@ -3,7 +3,7 @@ layout: post
 title:  "DownUnderCTF 2020"
 ---
 
-# Table of Contents
+## Table of Contents
 1. [Baby RSA](#baby-rsa)
 2. [Extra Cool Block Chaining](#ecbc)
 
@@ -31,7 +31,7 @@ print(f'c = {c}')
 ```
 
 This appears to be regular RSA except that I'm also given an extra variable \\( s \\).
-The exponent of s can be simplified to
+The exponent of $$s$$ can be simplified to
 \\[ n - p - q = pq - p - q = (p - 1)(q - 1) - 1 = \phi(n) - 1\\]
 Therefore
 \\[ s \equiv (557p - 127q)^{\phi(n) - 1} \pmod{n}\\]
@@ -46,7 +46,7 @@ Then, I realized that I could try solving for \\( 557p - 127q \\), drawing inspi
 since \\( (557p - 127q)^{\phi(n)} \equiv 1 \pmod{n} \\).
 Then,
 \\[ 557p - 127q \equiv s^{-1} \pmod{n} \\]
-and I used Sage's equation solver to solve for \\( p \\) and \\( q \\).
+and I used Sage's equation solver to solve for \\( p \\) and \\( q \\), which will finally net the flag.
 
 #### **`solve.sage`**
 ```python
@@ -130,6 +130,7 @@ print('Goodbye! :)')
 ```
 
 I translated the cryptosystem into equations to understand its vulnerability.
+
 Let \\( P_k \\) be the \\(k^{th} \\) 16 byte block of the plaintext.
 Let the same logic apply to the ciphertext block \\( C_k \\).
 Let \\( E \\) be the AES ECB encryption function, \\( D \\) be the AES ECB decryption function, and \\( iv \\) be the initialiation vector.
@@ -139,9 +140,9 @@ Then,
 \\[ D(C_0 \oplus iv) = P_0 \tag{3} \\]
 \\[ D(C_k \oplus iv \oplus E(P_{k-1})) = P_k \tag{4} \\]
 
-Because the server prints out the entirety of $$C$$, I could decrypt $$C_0$$ easily with equation $$3$$ with a single connection, but in order to get blocks after that, I need $$E(P_{k-1})$$, which is $$C_{k-1} \oplus iv $$. I have $$C_{k-1}$$ but retrieving $$iv$$ is not so simple. From equation $$2$$, I saw that if $$E(P_k) = E(P_{k-1})$$, then I could recover $$iv$$ from $$C_k$$. The only problem is that I only have one 16 byte block to try encrypting, not two.
+Because the server allowed me to decrypt any 16 byte block, I could decrypt $$C_0$$, but in order to decrypt non-primary blocks, I needed $$E(P_{k-1})$$ from equation $$4$$, which is $$C_{k-1} \oplus iv $$. I had $$C_{k-1}$$ but retrieving $$iv$$ was not so simple. From equation $$2$$, I saw that if $$E(P_k) = E(P_{k-1})$$, then I could recover $$iv$$ from $$C_k$$. However, that requires two 16 byte blocks.
 
-After playing around with the server code, I noticed that if I entered a null string into the encryption oracle, I would still get a $$16$$ byte response. Thus, in order to get around the one block restriction, I simply entered in `'\x10' * 16` as a plaintext, which gets padded to `'\x10' * 32`, and I retrieved the iv from the second block of the response.
+After playing around with the server code, I noticed that if I fed the encryption oracle a null string, I would still get a $$16$$ byte response. Thus, in order to bypass the one block restriction, I chose `'\x10' * 16` as a plaintext, which gets padded to `'\x10' * 32`, and then I retrieved the iv from the second block of the response.
 
 #### **`solution.py`**
 ```python
