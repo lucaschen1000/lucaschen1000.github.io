@@ -57,7 +57,7 @@ I simplified the exponent of $$s$$ to
 
 After this, I went down a rabbit hole trying to extract \\( \phi(n) \\) from \\( s \\).
 I simplified \\( s \\) to
-\\[ s \equiv 557^{\phi(n) - 1} - 127^{\phi(n) - 1} \pmod{n} \\]
+\\[ s \equiv (557p)^{\phi(n) - 1} - (127q)^{\phi(n) - 1} \pmod{n} \\]
 since when expanding \\( (557p - 127q)^{\phi(n) - 1} \\) using the binomial theorem, every term except for the first and last will have \\( pq \\) as a factor. But, I couldn't extract \\( \phi(n) \\) any further.
 
 Then, I realized that I could solve for \\( 557p - 127q \\), drawing inspiration from RSA decryption. I'm given the integer \\( n \\), so I would have two equations: \\( 557p - 127q \\) equal to an integer and \\( n = pq \\). I realized that using Euler's Theorem, I could simplify \\( s \\) into
