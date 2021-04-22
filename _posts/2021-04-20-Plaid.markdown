@@ -58,7 +58,7 @@ open("private.pem","wb").write(key.exportKey())
 open("public.pem","wb").write(key.publickey().exportKey())
 ```
 
-This problem is basically asking us to factor p and q given $$n = pq$$ and $$x = p\oplus q$$.
+This problem is basically asking us to factor to solve for p and q given the values of n and x, $$n = pq$$, and $$x = p\oplus q$$.
 
 I solved this question by building p and q from their least significant bits (LSB) to most significant bits (MSB). I was able to check if a guessed p and q had the same right to left bits as the real p and q via bit similarity. Let me define bit similarity as the number of consecutive bits n shares with a guessed p * a guessed q starting from their LSBs. Because most of x's bits were 1s -- if the nth bit of x were 1, then the nth bit of p, q respectively is either 1, 0 or 0, 1. I noticed a direct correlation between bit similarity and when a guessed p, q's MSB were 1, 0 or 0, 1. However, bit similarity becomes unpredictable as a metric when x's nth bit is 0 due to carrying.
 
@@ -273,7 +273,7 @@ Let $$E$$ be the AES-ECB encryption algorithm, let $$H = E(0)$$, let $$I = E(iv)
 3. $$t = tH$$ 
 4. After steps 2-3 have been repeated for all i blocks of P, then $$t = t \oplus I$$.
 
-If you're confused on step 3, [compare the gf128 function to page 8 of this pdf](https://csrc.nist.rip/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-spec.pdf).
+If you're confused on step 3, [compare the gf128 function to the 10th page of this pdf](https://csrc.nist.rip/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-spec.pdf).
 
 Because we receive the IV before inputting a plaintext, we have complete control over what gets encrypted in step 2. For example, if we let $$P_{i} = iv + i + 1$$, then we can force step $$2$$ to become $$t = t \oplus H$$. Also, because $$\oplus = +$$ in mod 2, generalized to Finite Field 2 (or any power of 2 for that matter), we could simplify the tag computation to $$ H^{i+1} + H^{i} + ... + H^{2} + I $$. I thought during the competition that I could try to find roots of $$ H^{8} + H^{7} + ... + H^{2} + I' + \{0, 1, ..., 15\} = T $$, but failed at this.
 
