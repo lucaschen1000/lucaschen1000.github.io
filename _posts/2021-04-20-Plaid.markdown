@@ -1,0 +1,343 @@
+---
+layout: post
+title:  "Plaid CTF 2021"
+---
+
+I was only able to solve XORSA during the competition. However, I worked afterwards to solve Leaky Block Cipher.
+
+## Table of Contents
+1. [XORSA](#xorsa)
+2. [Leaky Block Cipher](#leaky_block_cipher)
+
+## XORSA <a name="xorsa"></a>
+
+We were given public.pem and xorsa.sage listed below.
+
+```
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAjG3b+aLdU6JGb/Ybtiz1
+vjr4neghu3WlgavIUUqEOSpmE+qjJpwVmEPu94HfVSKpLS1a3DyVpUxf60J9CCwV
+fU8ttpAUEcDOKfFXFXP7SIiF7sjTb4x5SCtRI6ggR9eViKlfssGhZxBCeF9dDBRp
+66IYWNZD9mRln55jAzlaBdq7BQPy6IComaZ+eEC9IPrCgxaTYgko0MkMR6vWldAN
+J+SOeGKjFQFZrFjlC2TRydRsx8bBld9h7A/veZN/VUWwilNRc4LAc2L8iiR1qZ6c
+tB5PxUSnAOEcojxlit/O2e67eV46paMy0eObxyjY4DnwfSsr+TxOESCj1MsbeuHg
+14zqw3WV8L2ZTseOv405xfsS2APN+bsBmm/aTSC//ej+8FKmGJQz7c+U9te7ao2c
+wZGWUOATm28oTUS/HWcuXOilby570+Lr7m+39jHgA5z1B57PdLHHVl5gWLgfRrW2
+bq9/g06ULM5abMO9R+9L1BixecERSqD7aKs/qpHtvFEEB+EFJLN5DwTjsn5G68Je
+W7K5NNTka/CUBaVn88fnfOPwruODvQyNcuyyo5lzfD/SeSYb8nt8z+6LshQeIC77
+eGh9FYVgmq98LG81l/hLADtVqfLq0a7f4ABWy7VQmULCiN3SCPwF2oAzNbXgYrJw
+nvWf0OPU6iF7jyldSsAh/zcCAwEAAQ==
+-----END PUBLIC KEY-----
+```
+
+```python
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+from secret import p,q
+
+x = 16158503035655503426113161923582139215996816729841729510388257123879913978158886398099119284865182008994209960822918533986492024494600106348146394391522057566608094710459034761239411826561975763233251722937911293380163746384471886598967490683174505277425790076708816190844068727460135370229854070720638780344789626637927699732624476246512446229279134683464388038627051524453190148083707025054101132463059634405171130015990728153311556498299145863647112326468089494225289395728401221863674961839497514512905495012562702779156196970731085339939466059770413224786385677222902726546438487688076765303358036256878804074494
+
+assert p^^q == x
+
+n = p*q
+e = 65537
+d = inverse_mod(e, (p-1)*(q-1))
+
+n = int(n)
+e = int(e)
+d = int(d)
+p = int(p)
+q = int(q)
+
+flag = open("flag.txt","rb").read().strip()
+key = RSA.construct((n,e,d,p,q))
+cipher = PKCS1_OAEP.new(key)
+ciphertext = cipher.encrypt(flag)
+open("flag.enc","wb").write(ciphertext)
+open("private.pem","wb").write(key.exportKey())
+open("public.pem","wb").write(key.publickey().exportKey())
+```
+
+This problem is basically asking us to factor p and q given $$n = pq$$ and $$x = p\oplus q$$.
+
+I solved this question by building p and q from their least significant bits (LSB) to most significant bits (MSB). I was able to check if a guessed p and q had the same right to left bits as the real p and q via bit similarity. Let me define bit similarity as the number of consecutive bits n shares with a guessed p * a guessed q starting from their LSBs. Because most of x's bits were 1s -- if the nth bit of x were 1, then the nth bit of p, q respectively is either 1, 0 or 0, 1. I noticed a direct correlation between bit similarity and when a guessed p, q's MSB were 1, 0 or 0, 1. However, bit similarity becomes unpredictable as a metric when x's nth bit is 0 due to carrying.
+
+To solve, I first define weirdo. Weirdo marks the positions in x which has a 0 bit. I then guess which positions of p and q have respectively bits 1, 1, which are elements of the powerset of weirdo. To help speed up this process exponentially, I mapped elements in the powerset of weirdo to their bit similarities with n. If the bit similarity remains the same with a superset of that element of the powerset, then I can ignore the computation of further supersets.
+
+The below program spits out p, q in 3-4 minutes.
+
+```python
+from Crypto.PublicKey import RSA
+from Crypto.Util.number import *
+from tqdm import tqdm
+
+key = RSA.import_key(open("public.pem").read())
+n = key.n
+e = key.e
+x = 16158503035655503426113161923582139215996816729841729510388257123879913978158886398099119284865182008994209960822918533986492024494600106348146394391522057566608094710459034761239411826561975763233251722937911293380163746384471886598967490683174505277425790076708816190844068727460135370229854070720638780344789626637927699732624476246512446229279134683464388038627051524453190148083707025054101132463059634405171130015990728153311556498299145863647112326468089494225289395728401221863674961839497514512905495012562702779156196970731085339939466059770413224786385677222902726546438487688076765303358036256878804074494
+c = bytes_to_long(open("flag.enc", "rb").read())
+
+def powerset(s):
+    x = len(s)
+    masks = [1 << i for i in range(x)]
+    for i in range(1 << x):
+        yield [ss for mask, ss in zip(masks, s) if i & mask]
+
+def similarity(s):
+    i = 0
+    for s1, s2 in zip(bin(s)[2:].zfill(4096)[::-1], bin(n)[2:][::-1]):
+        if s1 != s2:
+            return i
+        i += 1
+    return i
+
+x_array = bin(x)[2:].zfill(2048)
+weirdo = [i for i, b in enumerate(x_array[::-1]) if b == "0"]
+p = 0
+q = 0
+cesspool = []
+simmap = dict()
+
+for w in tqdm(powerset(weirdo)):
+    try:
+        w.index(0)
+    except ValueError:
+        continue
+    
+    go = False
+    for i in range(len(w)):
+        if w[:i] in cesspool:
+            go = True
+            break
+    
+    if go:
+        continue
+
+    states = [-1, -2, -3]
+    p = 0
+    q = 0
+    for i, x_bit in enumerate(x_array[::-1]):
+        p_guess = p + 2**i
+        q_guess = q + 2**i
+
+        if x_bit == "0":
+            if i in w:
+                p = p_guess
+                q = q_guess
+        else:
+            prod1 = p_guess*q
+            prod2 = q_guess*p
+            if i+1 not in weirdo:
+                if similarity(prod1) >= similarity(prod2):
+                    q = q_guess
+                else:
+                    p = p_guess
+            else:
+                if similarity(prod1) >= similarity(prod2):
+                    p = p_guess
+                else:
+                    q = q_guess
+
+        states.append(similarity(p*q))
+        if len(set(states[-3:])) == 1: 
+            break
+    
+    simmap[tuple(w)] = states[-1]
+    if tuple(w[:-1]) in simmap and simmap[tuple(w[:-1])] == states[-1]:
+        cesspool.append(w)
+
+    if p*q == n:
+        print("p =", p)
+        print("q =", q)
+        break
+```
+
+The below program spits out the flag.
+
+```python
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+
+p = 20420969679471891108678348706656014746583934953911779875638425062354608191587183527950669164730700934272964182495787953304429468689762991322834551415645126708376516740680832417842286228420321593951669261051536747972457884863137310884282408490497575698325423547287860485177580030001077220138986358776296171919687266364733033819652040824038462023264875486252347426522916763724808898841410387685709431644531618456599577633972666332007415430841589961044976519245509149515296930564608453957399860365835338361556249254149485870260959744131461233248546913266875137205814224895267413530734240509464368626036706116974009128413
+q = 28054539427494619618149689905596076429856984445645433669516156290418225421410517787779668517055290133852649936139827864804362688012118333884178242727752944519074048590360750318612378539438159662786353326373062884835264801371859099448845473624420663390433385862519105545532536453262415924316279385374822224406717473538131244397856571015984808737311810992683556365367226442459037956423012864505787939824387975762988816118609146663560957688289879555734075738210834196560874913737409142987175846607589921563622580505680695004314201238943582440280860553616004146782317383144868597295249895821620037478662736479377036405283
+phi = (p-1)*(q-1)
+e = 65537
+d = pow(e, -1, phi)
+n = p*q
+c = open("flag.enc", "rb").read()
+
+key = RSA.construct((n, e, d))
+cipher = PKCS1_OAEP.new(key)
+m = cipher.decrypt(c)
+print(m)
+```
+
+## Leaky Block Cipher <a name="leaky_block_cipher"></a>
+
+We were given leaky_block_cipher.py listed below.
+
+```py
+import flag
+import hashcash
+
+import secrets
+from Crypto.Cipher import AES
+
+def gf128(a, b):
+    a = int.from_bytes(a, byteorder="big")
+    b = int.from_bytes(b, byteorder="big")
+    R = 128
+    P = sum(1 << x for x in [R, 7, 2, 1, 0])
+    r = 0
+    for i in range(R):
+        if a & (1 << i):
+            r ^= b << i
+    for i in range(R)[::-1]:
+        if r & (1 << (i+R)):
+            r ^= P << i
+    return r.to_bytes(16, byteorder="big")
+
+def xor(a, b):
+    return bytes(x^y for x,y in zip(a,b))
+
+class LeakyBlockCipher:
+    def __init__(self, key = None):
+        if key is None:
+            key = secrets.token_bytes(16)
+        self.key = key
+        self.aes = AES.new(key, AES.MODE_ECB)
+        self.H = self.aes.encrypt(bytes(16))
+    def encrypt(self, iv, data):
+        assert len(iv) == 16
+        assert len(data) % 16 == 0
+        ivi = int.from_bytes(iv, "big")
+        cip = bytes()
+        tag = bytes(16)
+        for i in range(0,len(data),16):
+            cntr = ((ivi + i // 16 + 1) % 2**128).to_bytes(16, byteorder="big")
+            block = data[i:i+16]
+            enced = self.aes.encrypt(xor(cntr, block))
+            cip += enced
+            tag = xor(tag, enced)
+            tag = gf128(tag, self.H)
+        tag = xor(tag, self.aes.encrypt(iv))
+        return cip, tag
+
+def main():
+    resource = secrets.token_hex(8)
+    print(resource)
+    token = input()
+    assert hashcash.check(token.strip(), resource, bits=21)
+
+    print("Thanks for helping me try to find this leak.")
+    print("Here's a few rounds of the cipher for you to investigate.")
+    print("")
+    for _ in range(20):
+        G = LeakyBlockCipher()
+        iv = secrets.token_bytes(16)
+        print("iv =", iv.hex())
+        plaintext = bytes.fromhex(input("plaintext = "))
+        assert len(plaintext) > 100
+        cip, tag = G.encrypt(iv, plaintext)
+        print("secure auth tag =", tag.hex())
+        print("")
+        enc_iv = G.aes.encrypt(iv).hex()
+        print("Have you caught the drip?")
+        print("It looks like ", enc_iv[:-1] + "X")
+        guess = input("So what is X? ").strip()
+        if guess == enc_iv[-1:]:
+            print("Good.  Now just to check, do it again for me.")
+        else:
+            print("Sorry, the answer was", enc_iv[-1:])
+            break
+    else:
+        print(flag.flag)
+
+if __name__ == "__main__":
+    main()
+```
+
+Note: I referenced [dd's writeup](http://de298.user.srcf.net/posts/writeups/plaidctf/leaky.html) for hints.
+
+We are given a custom AES-GCM cryptosystem. Twenty times, we must solve the puzzle:
+
+1. We receive a randomized initialization vector (IV).
+2. We enter in some plaintext with length $$\ge$$ 112 which has length divisible by 16.
+3. The plaintext gets encrypted and we receive the tag.
+4. We then get the first fifteen nibbles of $$E(iv)$$. We must guess correctly its least significant nibble to continue.
+
+Let $$E$$ be the AES-ECB encryption algorithm, let $$H = E(0)$$, let $$I = E(iv)$$, let $$I'$$ be the given information about $$E(iv)$$, and let the i-th block in 16s of the plaintext be $$P_{i}$$. How the tag $$t$$ gets computed is:
+
+1. $$t = 0$$ 
+2. $$t = t \oplus E(P_{i} \oplus (iv + i + 1))$$ 
+3. $$t = tH$$ 
+4. After steps 2-3 have been repeated for all i blocks of P, then $$t = t \oplus I$$.
+
+If you're confused on step 3, [compare the gf128 function to page 8 of this pdf](https://csrc.nist.rip/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-spec.pdf).
+
+Because we receive the IV before inputting a plaintext, we have complete control over what gets encrypted in step 2. For example, if we let $$P_{i} = iv + i + 1$$, then we can force step $$2$$ to become $$t = t \oplus H$$. Also, because $$\oplus = +$$ in mod 2, generalized to Finite Field 2 (or any power of 2 for that matter), we could simplify the tag computation to $$ H^{i+1} + H^{i} + ... + H^{2} + I $$. I thought during the competition that I could try to find roots of $$ H^{8} + H^{7} + ... + H^{2} + I' + \{0, 1, ..., 15\} = T $$, but failed at this.
+
+Instead, if we let $$P_{i} = iv \oplus (iv + i + 1)$$, then the tag computation can be simplified to $$ ((IH + I)H + I)H... + I = I(H^{i} + H^{i-1} +...+ 1) $$. Recall in Finite Field 2 that $$2 = 0$$ (all coefficients of polynomials in the polynomial ring over the finite field must have coefficients $$\le 1$$) so $$2H = 0$$. Therefore, $$H^{i} + H^{i-1} +...+1 = (H+1)^{i}$$ in Finite Field 2 when all coefficients of $$(H+1)^{i}$$ are odd. According to a Pascal's Triangle Theorem, the number of odd entries in row $$N$$ of Pascal's Triangle is 2 raised to the number of 1's in the binary expansion of N ([proof](https://math.hmc.edu/funfacts/odd-numbers-in-pascals-triangle/)), so $$H^{i} + H^{i-1} +...+1 = (H+1)^{i}$$ is possible in Finite Field 2 when $$i = 2^{k}-1, k\in \mathbb{N}$$.
+
+We now have simplified the problem down to solving $$t = (I' + \{0, 1, ..., 15\})(H+1)^{i}$$, so we need to figure out whether $$t(I' + \{0, 1, ..., 15\})^{-1}$$ has a root $$i$$. Whether it has a root is answered by the Legendre Symbol. The Legendre Symbol is defined by $$\left(\dfrac{a}{p}\right) = a^{(p-1)/2} \pmod{p}$$, and it equals $$1$$ if there exists an integer $$x$$ such that $$a\equiv x^{2}\pmod{p}$$. We can slightly modify $$\left(\dfrac{a}{p}\right) = a^{(p-1)/n}$$ to equal $$1$$ if there exists an integer $$n$$ such that $$a\equiv x^{n}\pmod{p}$$.
+
+Therefore, to determine the i-th power, we list all the divisors of $$2^{128}$$ such that it has form $$2^{k}-1$$.
+
+In the sage interpreter, I used [this bitwise trick](https://stackoverflow.com/questions/600293/how-to-check-if-a-number-is-a-power-of-2)
+
+```py
+sage: for d in divisors(2^128-1): 
+....:     p = d+1 
+....:     if (p != 0) and ((p & (p - 1)) == 0): 
+....:         print(d) 
+```
+
+which spits out
+
+```
+1
+3
+15
+255
+65535
+4294967295
+18446744073709551615
+340282366920938463463374607431768211455
+```
+
+We want to choose the largest divisor -- the higher the divisor, the less likely we'll run into false positives. However, we also need to send the divisor $$*16$$ number of characters to the server. A happy medium between these two concerns is to choose $$k = 255$$.
+
+This sage script below demonstrates a locally working exploit. Run it a few times, and you're bound to get one with all iterations solved.
+
+```py
+from leaky_block_cipher import *
+from Crypto.Util.number import bytes_to_long as bl, long_to_bytes as lb
+
+F.<a> = GF(2^128, name="a", modulus=x^128 + x^7 + x^2 + x + 1)
+R.<x> = PolynomialRing(F)
+divisor = 255
+
+for _ in range(20):
+    G = LeakyBlockCipher()
+    iv = secrets.token_bytes(16)
+    iv_n = bl(iv)
+    plaintext = b"".join([int((iv_n + i + 1) ^^ iv_n % 2^128).to_bytes(16, byteorder='big') for i in range(divisor)])
+    assert len(plaintext) > 100
+    _, tag = G.encrypt(iv, plaintext)
+    tag = bl(tag)
+
+    enc_iv = G.aes.encrypt(iv)
+    known_eiv = bl(enc_iv) & ~int(15)
+
+    for i in range(16):
+        k = known_eiv + i
+        rt = F.fetch_int(k)^-1 * F.fetch_int(tag)
+        leg = (rt^((2^128-1) // divisor)).integer_representation() % 2**128
+        if leg == 1:
+            if bl(enc_iv) == k:
+                print("Solved")
+            else:
+                print("Failed")
+            break
+```
+
