@@ -11,7 +11,10 @@ I was only able to solve XORSA during the competition. However, I worked afterwa
 
 ## XORSA <a name="xorsa"></a>
 
-We were given public.pem and xorsa.sage listed below.
+{::options parse_block_html="true" /}
+
+<details>
+  <summary markdown="span">**`public.pem`**</summary>
 
 ```
 -----BEGIN PUBLIC KEY-----
@@ -29,6 +32,10 @@ eGh9FYVgmq98LG81l/hLADtVqfLq0a7f4ABWy7VQmULCiN3SCPwF2oAzNbXgYrJw
 nvWf0OPU6iF7jyldSsAh/zcCAwEAAQ==
 -----END PUBLIC KEY-----
 ```
+</details>
+
+<details>
+  <summary markdown="span">**`xorsa.sage`**</summary>
 
 ```python
 from Crypto.PublicKey import RSA
@@ -57,6 +64,8 @@ open("flag.enc","wb").write(ciphertext)
 open("private.pem","wb").write(key.exportKey())
 open("public.pem","wb").write(key.publickey().exportKey())
 ```
+</details>
+{::options parse_block_html="false" /}
 
 This problem is basically asking us to factor to solve for p and q given the values of n and x, $$n = pq$$, and $$x = p\oplus q$$.
 
@@ -174,7 +183,10 @@ print(m)
 
 ## Leaky Block Cipher <a name="leaky_block_cipher"></a>
 
-We were given leaky_block_cipher.py listed below.
+{::options parse_block_html="true" /}
+
+<details>
+  <summary markdown="span">**`leaky_block_cipher.py`**</summary>
 
 ```py
 import flag
@@ -256,6 +268,9 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+</details>
+
+{::options parse_block_html="false" /}
 
 Note: I referenced [dd's writeup](http://de298.user.srcf.net/posts/writeups/plaidctf/leaky.html) for hints.
 
@@ -340,4 +355,3 @@ for _ in range(20):
                 print("Failed")
             break
 ```
-

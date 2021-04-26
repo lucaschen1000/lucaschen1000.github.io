@@ -51,17 +51,15 @@ c = 7000985606009752754441861235720582603834733127613290649448336518379922443691
 
 I was given `babyrsa.py` and `output.txt`, where `output.txt` was the result of running `babyrsa.py`.
 
-This looked to me like [standard RSA](https://en.wikipedia.org/wiki/RSA_(cryptosystem)#Example){:target="_blank" rel="noopener"} except that I was given an extra variable \\( s \equiv (557p - 127q)^{n - p - q} \pmod {n}\\).
-I simplified the exponent of $$s$$ to
-\\[ n - p - q = pq - p - q = (p - 1)(q - 1) - 1 = \phi(n) - 1\\]
+This looked to me like [RSA](https://en.wikipedia.org/wiki/RSA_(cryptosystem)#Example){:target="_blank" rel="noopener"} except that I was given an extra variable $$s \equiv (557p - 127q)^{n - p - q} \pmod {n}$$.
+I simplified the exponent of $$s$$ to $$n - p - q = pq - p - q = (p - 1)(q - 1) - 1 = \phi(n) - 1$$.
 
 After this, I went down a rabbit hole trying to extract \\( \phi(n) \\) from \\( s \\).
-I simplified \\( s \\) to
-\\[ s \equiv (557p)^{\phi(n) - 1} - (127q)^{\phi(n) - 1} \pmod{n} \\]
+I simplified \\( s \\) to $$s \equiv (557p)^{\phi(n) - 1} - (127q)^{\phi(n) - 1} \pmod{n}$$
 since when expanding \\( (557p - 127q)^{\phi(n) - 1} \\) using the binomial theorem, every term except for the first and last will have \\( pq \\) as a factor. But, I couldn't extract \\( \phi(n) \\) any further.
 
 Then, I realized that I could solve for \\( 557p - 127q \\), drawing inspiration from RSA decryption. I'm given the integer \\( n \\), so I would have two equations: \\( 557p - 127q \\) equal to an integer and \\( n = pq \\). I realized that using Euler's Theorem, I could simplify \\( s \\) into
-\\[ s \equiv (557p - 127q)^{-1} \pmod{n}\\]
+$$s \equiv (557p - 127q)^{-1} \pmod{n}$$
 since \\( (557p - 127q)^{\phi(n)} \equiv 1 \pmod{n} \\).
 
 Finally, I used Sage's equation solver to solve for \\( p \\) and \\( q \\), which will net the flag.

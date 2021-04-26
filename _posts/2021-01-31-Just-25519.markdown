@@ -72,10 +72,10 @@ if __name__ == "__main__":
 
 We are given
 
-* $$ x\in [1, p-1] $$
-* $$G = \textrm{Generator of the curve } y^{2} = x^{3} + 486662x^{2} + x \pmod {2^{255} - 19}$$
-* $$P = xG$$
-* $$m\in [1, p-1]$$
+\\[ x\in [1, p-1] \\]
+\\[ G = \textrm{Generator of the curve } y^{2} = x^{3} + 486662x^{2} + x \pmod {2^{255} - 19} \\]
+\\[ P = xG \\]
+\\[ m\in [1, p-1] \\]
 
 and we need to find at least 8 triplets of ($$I = (I_x, I_y)$$, $$e$$, $$s$$) with unique $$I$$ such that $$e = H_s(m, sG+eP, sH_p(P) + eI)$$, where $$H_s$$ and $$H_p$$ are arbitrary hash functions. $$H_s$$ takes in an arbitrary number of parameters and returns an integer while $$H_p$$ takes in an integer and return a point on the elliptic curve.
 
@@ -85,10 +85,10 @@ I can get somewhere by setting $$P=xG$$ in $$sG + eP$$, thus getting $$(s+ex)G$$
 
 However, setting $$s=2-ex$$ will not affect $$I$$, so I had to be smarter about how to change the value of I while still rendering $$e$$ useless in the expressions. I was stuck at this point for the longest time and then came up with the resulting algorithm.
 
-* $$i = \{\text{First eight integers with modular inverse modulo p}\}$$
-* $$e = H_s(m, G, H_p(P)\cdot(1+i))$$
-* $$I = i(x + e^{-1})H_p(P) \pmod {p}$$
-* $$s = (1-ex) \pmod{p}$$
+\\[ i = \{\text{First eight integers with modular inverse modulo p}\} \\]
+\\[ e = H_s(m, G, H_p(P)\cdot(1+i)) \\]
+\\[ I = i(x + e^{-1})H_p(P) \pmod {p} \\]
+\\[ s = (1-ex) \pmod{p} \\]
 
 I had the epiphany to use $$e$$ in $$I$$. Let's see how this works. Say $$i$$ were $$0$$. Then with $$s=(1-ex) \pmod{p}$$ and $$I = (x+e^{-1})H_{p}$$, $$(s+ex)G = G$$ and $$sH_p(P) + eI = (1-ex)H_p(P) + e(e^{-1}+x)H_p = 2H_{p}$$. The resulting expressions don't have $$e$$!
 
